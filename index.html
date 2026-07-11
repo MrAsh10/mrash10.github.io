@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Meccha Chameleon Leaderboard</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<link rel="stylesheet" href="style.css">
+
+</head>
+
+
+<body>
+
+
+<h1>🎉 CONGRATULATIONS YOU FOUND ME! 🎉</h1>
+
+
+<div class="card">
+
+<img class="main"
+src="https://static.wikia.nocookie.net/megaman/images/7/70/MMX_Mechameleon.png">
+
+
+<h2>🏆 Leaderboard 🏆</h2>
+
+
+<div id="board">
+Loading...
+</div>
+
+
+</div>
+
+
+
+<div class="card">
+
+
+<h2>Add Yourself</h2>
+
+
+<input 
+id="name"
+type="text"
+placeholder="Enter your name">
+
+
+<br>
+
+
+<label for="photo">
+📷 Choose Photo
+</label>
+
+
+<input
+id="photo"
+type="file"
+accept="image/*">
+
+
+<br>
+
+
+<button onclick="addPlayer()">
+Submit
+</button>
+
+
+</div>
+
+
+
+
+
+<script>
+
+
+// ============================
+// SUPABASE CONNECTION
+// ============================
+
+
+const SUPABASE_URL =
+"https://kchyybbcxxwivgcqwust.supabase.co";
+
+
+const SUPABASE_KEY =
+"sb_publishable_i2iUbLYfyBr_01qlonxnKA_hxXxx2Sf";
+
+
+const TABLE =
+"meccha_chameleon_Leaderboard";
+
+
+const BUCKET =
+"Photos";
+
+
+const db =
+supabase.createClient(
+SUPABASE_URL,
+SUPABASE_KEY
+);
+
+
+
+
+// ============================
+// LOAD LEADERBOARD
+// ============================
+
+
+async function loadLeaderboard(){
+
+
+const {data,error}=await db
+.from(TABLE)
+.select("*")
+.order("created_at",
+{ascending:false});
+
+
+
+if(error){
+
+console.log(error);
+
+document.getElementById("board").innerHTML =
+"Error loading leaderboard";
+
+return;
+
+}
+
+
+
+let html="";
+
+
+
+data.forEach((player,index)=>{
+
+
+html += `
+
+<div class="entry">
+
+<h3>
+#${index+1}
+</h3>
+
+
+<img src="${player.photo_url}">
+
+
+<p>
+${player.name}
+</p>
+
+
+</div>
+
+`;
+
+});
+
+
+
+document.getElementById("board").innerHTML=html;
+
+
+}
+
+
+
+
+
+// ============================
+// ADD PLAYER
+// ============================
+
+
+async function addPlayer(){
+
+
+
+let name =
+document.getElementById("name").value;
+
+
+let file =
+document.getElementById("photo").files[0];
+
+
+
+if(!name || !file){
+
+alert(
+"Enter a name and choose a photo"
+);
+
+return;
+
+}
+
+
+
+
+// unique filename
+
+let filename =
+Date.now()+"_"+file.name;
+
+
+
+// upload image
+
+let upload =
+await db.storage
+.from(BUCKET)
+.upload(filename,file);
+
+
+
+if(upload.error){
+
+alert(upload.error.message);
+
+return;
+
+}
+
+
+
+
+
+// get image URL
+
+
+let image =
+db.storage
+.from(BUCKET)
+.getPublicUrl(filename)
+.data.publicUrl;
+
+
+
+
+// save player
+
+
+let insert =
+await db
+.from(TABLE)
+.insert({
+
+name:name,
+
+photo_url:image
+
+});
+
+
+
+
+if(insert.error){
+
+alert(insert.error.message);
+
+return;
+
+}
+
+
+
+
+alert(
+"Added!"
+);
+
+
+
+document.getElementById("name").value="";
+
+document.getElementById("photo").value="";
+
+
+loadLeaderboard();
+
+
+}
+
+
+
+
+loadLeaderboard();
+
+
+</script>
+
+
+</body>
+
+</html>

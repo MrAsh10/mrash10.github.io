@@ -27,11 +27,11 @@
 src="https://static.wikia.nocookie.net/megaman/images/7/70/MMX_Mechameleon.png">
 
 
-<h2>🏆 Leaderboard 🏆</h2>
+<h2>🏆 Meccha Chameleon Leaderboard 🏆</h2>
 
 
 <div id="board">
-Loading...
+Loading leaderboard...
 </div>
 
 
@@ -59,7 +59,7 @@ placeholder="Enter your name">
 </label>
 
 
-<input
+<input 
 id="photo"
 type="file"
 accept="image/*">
@@ -82,9 +82,9 @@ Submit
 <script>
 
 
-// ============================
+// =============================
 // SUPABASE CONNECTION
-// ============================
+// =============================
 
 
 const SUPABASE_URL =
@@ -103,7 +103,7 @@ const BUCKET =
 "Photos";
 
 
-const db =
+const client =
 supabase.createClient(
 SUPABASE_URL,
 SUPABASE_KEY
@@ -112,15 +112,15 @@ SUPABASE_KEY
 
 
 
-// ============================
+// =============================
 // LOAD LEADERBOARD
-// ============================
+// =============================
 
 
 async function loadLeaderboard(){
 
 
-const {data,error}=await db
+const {data,error}=await client
 .from(TABLE)
 .select("*")
 .order("created_at",
@@ -133,7 +133,7 @@ if(error){
 console.log(error);
 
 document.getElementById("board").innerHTML =
-"Error loading leaderboard";
+"❌ Error loading leaderboard";
 
 return;
 
@@ -141,28 +141,28 @@ return;
 
 
 
-let html="";
+let output="";
 
 
 
 data.forEach((player,index)=>{
 
 
-html += `
+output += `
 
 <div class="entry">
 
-<h3>
+<div class="rank">
 #${index+1}
-</h3>
+</div>
 
 
 <img src="${player.photo_url}">
 
 
-<p>
+<div class="name">
 ${player.name}
-</p>
+</div>
 
 
 </div>
@@ -173,7 +173,8 @@ ${player.name}
 
 
 
-document.getElementById("board").innerHTML=html;
+document.getElementById("board").innerHTML =
+output;
 
 
 }
@@ -182,28 +183,67 @@ document.getElementById("board").innerHTML=html;
 
 
 
-// ============================
+// =============================
 // ADD PLAYER
-// ============================
+// =============================
 
 
 async function addPlayer(){
 
 
 
-let name =
-document.getElementById("name").value;
+const name =
+document.getElementById("name")
+.value
+.trim();
 
 
-let file =
-document.getElementById("photo").files[0];
+
+const file =
+document.getElementById("photo")
+.files[0];
 
 
 
 if(!name || !file){
 
 alert(
-"Enter a name and choose a photo"
+"Please enter your name and choose a photo"
+);
+
+return;
+
+}
+
+
+
+// Create unique file name
+
+const fileName =
+Date.now()
++"_"+file.name;
+
+
+
+
+// Upload image
+
+
+const upload =
+await client.storage
+.from(BUCKET)
+.upload(
+fileName,
+file
+);
+
+
+
+if(upload.error){
+
+alert(
+"Photo upload failed: "
++ upload.error.message
 );
 
 return;
@@ -213,66 +253,43 @@ return;
 
 
 
-// unique filename
-
-let filename =
-Date.now()+"_"+file.name;
+// Get image URL
 
 
-
-// upload image
-
-let upload =
-await db.storage
+const imageURL =
+client.storage
 .from(BUCKET)
-.upload(filename,file);
-
-
-
-if(upload.error){
-
-alert(upload.error.message);
-
-return;
-
-}
+.getPublicUrl(fileName)
+.data
+.publicUrl;
 
 
 
 
-
-// get image URL
-
-
-let image =
-db.storage
-.from(BUCKET)
-.getPublicUrl(filename)
-.data.publicUrl;
+// Insert into leaderboard
 
 
-
-
-// save player
-
-
-let insert =
-await db
+const insert =
+await client
 .from(TABLE)
 .insert({
 
 name:name,
 
-photo_url:image
+photo_url:imageURL
 
 });
 
 
 
-
 if(insert.error){
 
-alert(insert.error.message);
+console.log(insert.error);
+
+alert(
+"Database error: "
++ insert.error.message
+);
 
 return;
 
@@ -280,9 +297,8 @@ return;
 
 
 
-
 alert(
-"Added!"
+"🎉 Added to leaderboard!"
 );
 
 
